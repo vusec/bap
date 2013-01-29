@@ -1,0 +1,13 @@
+# $Id: Makefile.in 5930 2012-03-27 20:08:36Z edmcman $
+# Wrapper to configure and build libtrace
+
+.PHONY: default
+default: all
+
+%:
+	$(MAKE) CONFIGURED
+	$(MAKE) -C libtrace $@
+
+CONFIGURED: libtrace/Makefile.am libtrace/configure.ac
+	(cd libtrace && ./autogen.sh && ./configure --with-batteries=@BAP_DIR@/batteries/_build/src)
+	touch CONFIGURED

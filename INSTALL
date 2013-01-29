@@ -1,0 +1,124 @@
+*** Basic installation ****
+
+We primarily build bap on Ubuntu Linux. It will likely also work on
+Debian systems.
+
+To build BAP on x86, do the following:
+  $ ./autogen.sh
+  $ ./configure
+  $ make
+-- or to make all and run unit tests after --
+  $ make test
+
+Configure should report any dependencies you do not have.  You can
+satisfy most dependencies on Ubuntu 11.04/11.10/12.04 by running:
+
+  $ sudo apt-get install ocaml ocaml-native-compilers ocaml-findlib camlidl \
+    libocamlgraph-ocaml-dev libextlib-ocaml-dev binutils-dev automake \
+    libcamomile-ocaml-dev otags libpcre3-dev camlp4-extra bison flex \
+    zlib1g-dev libgmp3-dev g++ libbitstring-ocaml-dev libtool
+
+XXX: Does this work for Debian too?
+
+To build LLVM code generation, include:
+   libllvm-ocaml-dev
+We have only tested with version 2.9, but other versions may work too.
+
+On x86_64 add the following packages:
+    gcc-multilib g++-multilib lib32z1-dev
+
+To compile the documentation, you also need
+  $ sudo aptitude install texlive-base texlive-latex-base \
+    texlive-latex-extra texlive-fonts-recommended
+
+The following command will install build dependencies on Fedora Core 15:
+
+  $ sudo yum install ocaml ocaml-ocamlgraph ocaml-findlib  \
+   ocaml-camlidl-devel ocaml-ocamlgraph-devel ocaml-extlib \
+   ocaml-camomile-devel ocaml-camomile-data                \
+   ocaml-camlp4-devel automake binutils-devel gcc-c++
+
+If you get an error that says there is an undefined reference to
+'__stack_chk_fail', either you need to reconfigure with gcc set to
+disable stack protection, or you have compiled part of the code
+with the stack protector and part without it, in which case you
+might have to enable it to finish compilation.
+You can enable/disable the stack protector in gcc in the following way:
+Disable: ./configure CC="gcc -fno-stack-protector"
+Enable: ./configure CC="gcc -fstack-protector"
+Doing make clean first, will ensure that the whole platform gets
+compiled with the same flag
+
+
+*** SMT Solvers ***
+
+BAP interfaces with several SMT solvers which must be downloaded and
+installed separately.  The solver utility must be in the executable
+path to be available to BAP. The supported solvers are:
+ * STP https://sites.google.com/site/stpfastprover/
+ * cvc3 http://www.cs.nyu.edu/acsys/cvc3/
+ * yices2 http://yices.csl.sri.com/
+
+BAP also supports z3 through its native ocaml library, avavilable here:
+http://research.microsoft.com/en-us/um/redmond/projects/z3/download.html
+Once downloaded and extracted, use the BAP configure --with-z3=z3-dir
+option, where z3-dir is the extracted z3 directory.  Note that you must
+run the z3-dir/ocaml/build-lib.sh script before configuring.  The getz3.sh
+script in the solvers directory of the BAP distribution will download,
+extract z3 to solvers/z3, and run the build-lib script for you.  If
+you use this script, you must then pass --with-z3=bap-dir/solvers/z3
+to configure, replacing bap-dir with the path of your BAP directory.
+
+
+*** Installing pin ***
+
+The PIN trace tool is located in the pintraces/ directory. Because of licensing
+reasons, we cannot distribute PIN with the trace tool. PIN must be extracted
+inside of the traces directory; for instance, if the traces branch is located
+in $PATH/traces, then PIN should be in $PATH/traces/pin. Running ./getpin.sh
+from the $PATH/traces/pintraces directory will automatically download and
+install PIN for Linux; the user is responsible for accepting the PIN license
+agreements. On Windows, PIN must be downloaded and extracted by hand. The PIN
+tool can be built by executing make in the $PATH/traces/experiemental directory.
+On Windows, we reccomend using GNU Make for Windows
+(http://gnuwin32.sourceforge.net/packages/make.htm) and Visual C++ 2010 express
+(http://www.microsoft.com/visualstudio/en-us/products/2010-editions/visual-cpp-express).
+After compilation, the PIN tool should exist in
+$PATH/traces/pintraces/obj-ia32/gentrace.so (or gentrace.dll on Windows).
+
+
+
+*** Optional: Making the documentation ***
+
+Optionally you can also build the developer documentation by running:
+'make doc' in the ocaml directory.  The documentation will be
+generated under ocaml/doc/bap/.  Note that ocaml documentation
+requires that the ocaml source files be built properly first.
+
+
+*** Optional: Making unit tests ***
+
+Build and run the unit tests tests:
+$ make test
+OR
+
+$ cd tests && make && ./bap_test_suite
+
+For verbose output, pass -verbose to bap_test_suite.
+
+
+*** Optional: Lift arm binaries ***
+
+BAP can lift little endian arm binaries.  For this to work, BAP needs
+to be linked to a version of the BFD library that supports arm.  On
+ubuntu, these are provided by the binutils-multiarch package.
+However, this package does not replace the default BFD libraries
+(which probably do not support arm).  You must also manually run:
+
+  $ cd /usr/lib && sudo rm libbfd.so libopcodes.so \
+  && sudo ln -s libbfd-2.21.0-multiarch.20110327.so libbfd.so \
+  && sudo ln -s libopcodes-2.21.0-multiarch.20110327.so libopcodes.so
+
+to point the default BFD libraries to the multiarch implementations.
+You will probably need to adjust the lib*-multiarch*so filenames to
+match those on your system.
