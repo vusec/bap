@@ -91,6 +91,16 @@ let var_to_string ?ctx (Var.V(id,name,t) as v) =
       let rec more x = (x^"_", `F more) in
       trystring (name, `F (fun _ -> (name ^ "_" ^ string_of_int id, `F more)))
 
+let taint_to_string = function
+    | Taint t -> string_of_int t
+    | TaintList t -> 
+            let rec string_of_list = function
+                | [] -> "" 
+                | h :: t when t = [] ->  (string_of_int h)
+                | h :: t -> (string_of_int h) ^ "," ^ (string_of_list t) 
+            in
+            "[" ^ (string_of_list t) ^ "]"
+
 class pp ft =
   let pp = F.pp_print_string ft
   and pc = F.pp_print_char ft
@@ -119,8 +129,8 @@ object (self)
     | Address a -> printf "@address \"0x%Lx\"" a;
     | Liveout -> pp "@set \"liveout\""
     | StrAttr s -> pp "@str \""; pp s; pc '\"'
-    | Context {name=s; mem=mem; value=v; index=i; t=Reg bits; taint=Taint t} -> 
-      let ts = string_of_int t in
+    | Context {name=s; mem=mem; value=v; index=i; t=Reg bits; taint=t} -> 
+      let ts = taint_to_string t in
 	(*if t = Taint then "tainted" else "untainted" in*)
 	let ind = if mem then "[0x"^(Int64.format "%Lx" i)^"]" else "" in
 	pp "@context "; pc '"'; pp (s^ind); pc '"'; pp (" = 0x"^(Util.big_int_to_hex v)^ ", " ^ ts

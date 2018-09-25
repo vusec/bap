@@ -1,5 +1,11 @@
 #include "reg_mapping_pin.h"
 
+#ifdef USING_PIN
+#define PIN(REG) LEVEL_BASE::REG
+#else
+#define PIN(REG) REG
+#endif
+
 string pin_register_name(uint32_t id)
 {
 
@@ -94,29 +100,29 @@ switch (id) {
     case REG_INST_PTR = case REG_RIP:
 #else*/
     // Context registers in the IA-32 architecture
-    case REG_EDI:  return string("R_EDI");
+ case PIN(REG_EDI):  return string("R_EDI");
     //case REG_GDI:
     //case REG_EDI:
-    case REG_ESI:  return string("R_ESI");
+ case PIN(REG_ESI):  return string("R_ESI");
     //case REG_GSI:
     //case REG_ESI:
-    case REG_EBP:  return string("R_EBP");
+ case PIN(REG_EBP):  return string("R_EBP");
     //case REG_GBP:
     //case REG_EBP:
-    case REG_ESP:  return string("R_ESP");
+    case PIN(REG_ESP):  return string("R_ESP");
     //case REG_STACK_PTR:
     //case REG_ESP:
-    case REG_EBX:  return string("R_EBX");
+    case PIN(REG_EBX):  return string("R_EBX");
     //case REG_GBX:
     //case REG_EBX:
-    case REG_EDX:  return string("R_EDX");
+    case PIN(REG_EDX):  return string("R_EDX");
     //case REG_GDX:
     //case REG_EDX:
-    case REG_ECX:  return string("R_ECX");
+    case PIN(REG_ECX):  return string("R_ECX");
     //case REG_GCX:
     //case REG_ECX:
-    case REG_EAX: return string("R_EAX");
-    //case REG_GAX: 
+    case PIN(REG_EAX): return string("R_EAX");
+    //case REG_GAX:
     //case REG_EAX:
     //case REG_GR_LAST:
     //case REG_EAX:
@@ -124,7 +130,7 @@ switch (id) {
     //case REG_SEG_BASE:
     //case REG_SEG_CS:
     //case REG_SEG_BASE:
-    case REG_SEG_SS:  return string("SS");
+    case PIN(REG_SEG_SS):  return string("SS");
     //case REG_SEG_DS:
     //case REG_SEG_ES:
     //case REG_SEG_FS:
@@ -132,11 +138,11 @@ switch (id) {
     //case REG_SEG_LAST:
     //case REG_SEG_GS:
 
-    case REG_EFLAGS:  return string("EFLAGS");
+    case PIN(REG_EFLAGS):  return string("EFLAGS");
     //case REG_GFLAGS:
     //case REG_EFLAGS:
     //case REG_EIP:
-    case REG_INST_PTR:  return string("R_EIP");
+    case PIN(REG_INST_PTR):  return string("R_EIP");
     //case REG_EIP:
 //#endif
     
@@ -144,25 +150,25 @@ switch (id) {
     //case REG_INST_PTR:
 
     // partial registers common to both the IA-32 and Intel(R) 64 architectures.
-    case REG_AL:  return string("R_AL");
-    case REG_AH:  return string("R_AH");
-    case REG_AX:  return string("R_AX");
-    
-    case REG_CL:  return string("R_CL");
-    case REG_CH:  return string("R_CH");
-    case REG_CX:  return string("R_CX");
-    
-    case REG_DL:  return string("R_DL");
-    case REG_DH:  return string("R_DH");
-    case REG_DX:  return string("R_DX");
-    
-    case REG_BL:  return string("R_BL");
-    case REG_BH:  
-    case REG_BX:  return string("R_BX");
+    case PIN(REG_AL):  return string("R_AL");
+    case PIN(REG_AH):  return string("R_AH");
+    case PIN(REG_AX):  return string("R_AX");
 
-    case REG_BP:  return string("R_BP");
-    case REG_SI:  return string("R_SI");
-    case REG_DI:  return string("R_DI");
+    case PIN(REG_CL):  return string("R_CL");
+    case PIN(REG_CH):  return string("R_CH");
+    case PIN(REG_CX):  return string("R_CX");
+
+    case PIN(REG_DL):  return string("R_DL");
+    case PIN(REG_DH):  return string("R_DH");
+    case PIN(REG_DX):  return string("R_DX");
+
+    case PIN(REG_BL):  return string("R_BL");
+    case PIN(REG_BH):
+    case PIN(REG_BX):  return string("R_BX");
+
+    case PIN(REG_BP):  return string("R_BP");
+    case PIN(REG_SI):  return string("R_SI");
+    case PIN(REG_DI):  return string("R_DI");
 
     //case REG_SP:
     //case REG_FLAGS:
@@ -239,21 +245,21 @@ switch (id) {
     case REG_XMM_BASE:
 */
     // case REG_XMM0 = case REG_XMM_BASE:
-    case REG_XMM0:
+    case PIN(REG_XMM0):
       return string("R_XMM0");
-    case REG_XMM1:
+    case PIN(REG_XMM1):
       return string("R_XMM1");
-    case REG_XMM2:
+    case PIN(REG_XMM2):
       return string("R_XMM2");
-    case REG_XMM3:
+    case PIN(REG_XMM3):
       return string("R_XMM3");
-    case REG_XMM4:
+    case PIN(REG_XMM4):
       return string("R_XMM4");
-    case REG_XMM5:
+    case PIN(REG_XMM5):
       return string("R_XMM5");
-    case REG_XMM6:
+    case PIN(REG_XMM6):
       return string("R_XMM6");
-    case REG_XMM7:
+    case PIN(REG_XMM7):
       return string("R_XMM7");
     
       //#if defined(TARGET_IA32E)
@@ -303,8 +309,8 @@ switch (id) {
 #else    
     case REG_YMM_LAST = case REG_YMM7:
 #endif
-      */    
- case REG_MXCSR:
+      */
+ case PIN(REG_MXCSR):
      return string("R_MXCSR");
         /*
     case REG_DR_BASE:
@@ -385,15 +391,15 @@ switch (id) {
     case REG_FP_LAST = case REG_FPDP_SEL:
 
     case REG_ST_BASE:
-    */    
- case REG_ST0: return string("R_ST0");
- case REG_ST1: return string("R_ST1");
- case REG_ST2: return string("R_ST2");
- case REG_ST3: return string("R_ST3");
- case REG_ST4: return string("R_ST4");
- case REG_ST5: return string("R_ST5");
- case REG_ST6: return string("R_ST6");
- case REG_ST7: return string("R_ST7");
+    */
+ case PIN(REG_ST0): return string("R_ST0");
+ case PIN(REG_ST1): return string("R_ST1");
+ case PIN(REG_ST2): return string("R_ST2");
+ case PIN(REG_ST3): return string("R_ST3");
+ case PIN(REG_ST4): return string("R_ST4");
+ case PIN(REG_ST5): return string("R_ST5");
+ case PIN(REG_ST6): return string("R_ST6");
+ case PIN(REG_ST7): return string("R_ST7");
         /*
 #if !defined(TARGET_DOXYGEN)
     case REG_ST_LAST = case REG_ST7:
@@ -402,8 +408,8 @@ switch (id) {
     
     case REG_STATUS_FLAGS:
 */
-    case REG_DF_FLAG: return string("R_DFLAG");
-/*    
+    case PIN(REG_DF_FLAG): return string("R_DFLAG");
+/*
     case REG_AGGcase REGATE_BASE:
     case REG_FPST_ALL = case REG_AGGcase REGATE_BASE:
     case REG_AGGcase REGATE_LAST = case REG_FPST_ALL:
@@ -554,8 +560,8 @@ switch (id) {
     // Virtual registers reg holding memory addresses pointed by GS/FS registers
     // These registers are visible for tool writers
     */
-    case REG_SEG_GS_BASE: return string("R_GS_BASE"); ///< Base address for GS segment
-    case REG_SEG_FS_BASE: return string("R_FS_BASE");///< Base address for FS segment
+    case PIN(REG_SEG_GS_BASE): return string("R_GS_BASE"); ///< Base address for GS segment
+    case PIN(REG_SEG_FS_BASE): return string("R_FS_BASE");///< Base address for FS segment
       /*
     // ISA-independent Pin virtual regs needed for instrumentation
     // These are pin registers visible to the pintool writers.

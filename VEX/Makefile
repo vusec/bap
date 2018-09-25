@@ -110,6 +110,9 @@ all: vex
 # Empty, needed for Valgrind
 install:
 
+# Empty, needed for BAP
+tags:
+
 scratch: clean all
 
 vex: libvex.a test_main.o

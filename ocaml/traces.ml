@@ -390,7 +390,9 @@ let get_int = function
     i
   | _ -> failwith "Expected integer"
 
-let taint_to_bool n = n != 0
+let taint_to_bool = function 
+    | Taint n -> n != 0
+    | TaintList l -> (List.length l) != 0
 
 let hd_tl = Util.hd_tl
 
@@ -528,7 +530,7 @@ let is_seed_label = (=) "ReadSyscall"
 
 (* Store the concrete taint info in the global environment *)
 let add_to_conc {name=name; mem=mem; index=index; value=value;
-                 t=typ; usage=usage; taint=Taint taint} =
+                 t=typ; usage=usage; taint=taint} =
   (* Stores the concrete (known) memory bytes in the global
      environment in little endian order *)
   let add_to_mem index value taint limit =
@@ -930,6 +932,13 @@ let check_delta state =
 
 let counter = ref 1
 
+(* XXX: Hack to identify taint by an integer value.  
+ * Current used to create symbolic taint values in traces.ml
+ * and traces_surgical.ml *)
+let int_of_taint = function
+    | Taint t -> t
+    | TaintList l -> Hashtbl.hash l 
+
 let get_symbolic_seeds memv = function
   (* | Ast.Label (Name s,atts) when is_seed_label s -> *)
   (*     List.fold_left *)
@@ -951,8 +960,8 @@ let get_symbolic_seeds memv = function
   (*    ) [] (filter_taint atts) *)
   | Ast.Comment (s,atts) when is_seed_label s ->
       List.fold_left
-	(fun (accl,accr) {index=index; taint=Taint taint; value=value} ->
-	   let sym_var = sym_lookup taint in
+	(fun (accl,accr) {index=index; taint=taint; value=value} ->
+	   let sym_var = sym_lookup (int_of_taint taint) in
 	     pdebug ("Introducing symbolic: "
 		     ^(Printf.sprintf "%Lx" index)
 		     ^" -> "
@@ -1834,7 +1843,7 @@ let output_exploit file trace =
     let sort_aux (var1, _) (var2,_) =
         compare (var_to_num var1) (var_to_num var2)
     in
-      List.sort ~cmp:sort_aux
+      List.sort sort_aux
   in
     (* Padding unused symbolic bytes *)
   let pad_unused =

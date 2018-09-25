@@ -50,7 +50,7 @@ static string PIVOT_pivottype_string(pivottype_t t) {
 /**
    Convert a few REGs to strings.
 */
-#define CASE(r) case REG_##r: return string(#r); break;
+#define CASE(r) case LEVEL_BASE::REG_##r: return string(#r); break;
 static string PIVOT_reg_string(REG ri) {
   switch(ri) {
     CASE(EAX);
@@ -74,7 +74,7 @@ static string PIVOT_reg_string(REG ri) {
 /**
    Convert a few strings to REGs
 */
-#define CASE(r) if (ri == "R_" #r) { return REG_##r; }
+#define CASE(r) if (ri == "R_" #r) { return LEVEL_BASE::REG_##r; }
 static REG PIVOT_string_reg(string ri) {
   CASE(EAX);
   CASE(EBX);
@@ -176,11 +176,11 @@ void PIVOT_testpivot(pivot_set ps, CONTEXT *ctx, TaintTracker &tt) {
         case MEMPIVOT:
         {
           char tempbuf[1];
-          uint32_t t = tt.getMemTaint(a, pintrace::INVALIDREGMEM);
+          tag_t t = tt.getMemTaint(a, pintrace::INVALIDREGMEM);
           size_t consecTainted = 0;
           uint32_t readable = PIN_SafeCopy(tempbuf, (void*)a, 1);
           
-          for (uint32_t base = a; tt.getMemTaint(base, pintrace::INVALIDREGMEM) != NOTAINT; base++, consecTainted++) { 
+          for (uint32_t base = a; TagTraits<tag_t>::isTainted(tt.getMemTaint(base, pintrace::INVALIDREGMEM)); base++, consecTainted++) { 
             /* .... */
           }
           

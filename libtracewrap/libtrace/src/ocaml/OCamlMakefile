@@ -54,7 +54,9 @@ export VMTHREADS
 export ANNOTATE
 export USE_CAMLP4
 
+INCDIRS += $(shell ocamlfind query camlidl)
 export INCDIRS
+LIBDIRS += $(shell ocamlfind query camlidl)
 export LIBDIRS
 export EXTLIBDIRS
 export RESULTDEPS
@@ -1044,6 +1046,9 @@ else
 			lib -nologo -debugtype:cv -out:$(RES_CLIB) $(OBJ_LINK)
   endif
 endif
+
+tags: $(SOURCE)
+	-otag $^
 
 %.cmi:	%.mli $(EXTRADEPS)
 			$(QUIET)pp=`sed -n -e '/^#/d' -e 's/(\*pp \([^*]*\) \*)/\1/p;q' $<`; \

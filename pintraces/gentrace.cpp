@@ -222,6 +222,9 @@ KNOB<int> SkipTaints(KNOB_MODE_WRITEONCE, "pintool",
                      "skip-taints", "0",
                      "Skip this many taint introductions");
 
+KNOB<bool> UniqueTraceFile(KNOB_MODE_WRITEONCE, "pintool",
+                        "unique-tracefile", "false",
+                        "Prepend the PID before the trace file.");
 struct FrameBuf {
     uint32_t addr;
     uint32_t tid;
@@ -247,7 +250,7 @@ struct FrameBuf {
 typedef struct TempOps_s {
     uint32_t reg;
     RegMem_t type;
-    uint32_t taint;
+    uint32_t usage;
 } TempOps_t;
 
 /**
@@ -458,45 +461,45 @@ static uint32_t GetBitsOfReg(REG r) {
 
     /* REG_is_fr_or_x87 returns true on XMM registers and other
        non-x87 regs, so we can't use that. */
-    if (REG_ST_BASE <= r && r <= REG_ST_LAST) return 80;
+    if (LEVEL_BASE::REG_ST_BASE <= r && r <= LEVEL_BASE::REG_ST_LAST) return 80;
 
     string s = REG_StringShort(r);
 
     switch (r) {
-    case REG_SEG_CS:
-    case REG_SEG_DS:
-    case REG_SEG_ES:
-    case REG_SEG_FS:
-    case REG_SEG_GS:
-    case REG_SEG_SS:
+    case LEVEL_BASE::REG_SEG_CS:
+    case LEVEL_BASE::REG_SEG_DS:
+    case LEVEL_BASE::REG_SEG_ES:
+    case LEVEL_BASE::REG_SEG_FS:
+    case LEVEL_BASE::REG_SEG_GS:
+    case LEVEL_BASE::REG_SEG_SS:
         return 16;
         break;
 
-    case REG_INST_PTR:
-    case REG_EFLAGS:
-    case REG_MXCSR:
+    case LEVEL_BASE::REG_INST_PTR:
+    case LEVEL_BASE::REG_EFLAGS:
+    case LEVEL_BASE::REG_MXCSR:
         return 32;
         break;
 
-    case REG_XMM0:
-    case REG_XMM1:
-    case REG_XMM2:
-    case REG_XMM3:
-    case REG_XMM4:
-    case REG_XMM5:
-    case REG_XMM6:
-    case REG_XMM7:
+    case LEVEL_BASE::REG_XMM0:
+    case LEVEL_BASE::REG_XMM1:
+    case LEVEL_BASE::REG_XMM2:
+    case LEVEL_BASE::REG_XMM3:
+    case LEVEL_BASE::REG_XMM4:
+    case LEVEL_BASE::REG_XMM5:
+    case LEVEL_BASE::REG_XMM6:
+    case LEVEL_BASE::REG_XMM7:
         return 128;
         break;
 
-    case REG_YMM0:
-    case REG_YMM1:
-    case REG_YMM2:
-    case REG_YMM3:
-    case REG_YMM4:
-    case REG_YMM5:
-    case REG_YMM6:
-    case REG_YMM7:
+    case LEVEL_BASE::REG_YMM0:
+    case LEVEL_BASE::REG_YMM1:
+    case LEVEL_BASE::REG_YMM2:
+    case LEVEL_BASE::REG_YMM3:
+    case LEVEL_BASE::REG_YMM4:
+    case LEVEL_BASE::REG_YMM5:
+    case LEVEL_BASE::REG_YMM6:
+    case LEVEL_BASE::REG_YMM7:
         return 256;
         break;
 
@@ -579,6 +582,7 @@ ADDRINT CheckBufferEx(BOOL cond, UINT32 count, UINT32 count2)
   return cond && ((g_bufidx + count + count2) >= BUFFER_SIZE - FUDGE);
 }
 
+
 // Callers must ensure mutual exclusion
 VOID FlushInstructions()
 {
@@ -612,16 +616,15 @@ VOID FlushInstructions()
             o->mutable_operand_usage()->set_index(false);
             o->mutable_operand_usage()->set_base(false);
 
-            switch (v.taint) {
-            case 0:
-                o->mutable_taint_info()->set_no_taint(true);
-                break;
-            case -1:
-                o->mutable_taint_info()->set_taint_multiple(true);
-                break;
-            default:
-                o->mutable_taint_info()->set_taint_id(v.taint);
-                break;
+            if (!TagTraits<tag_t>::isContainer) {
+                if (!TagTraits<tag_t>::isTainted(v.taint))
+                    o->mutable_taint_info()->set_no_taint(true);
+                else if (TagTraits<tag_t>::isCombined(v.taint))
+                    o->mutable_taint_info()->set_taint_multiple(true);
+                else
+                    flushTaint(o->mutable_taint_info()->mutable_taint_id(), v.taint);
+            } else {
+                    flushTaint(o->mutable_taint_info()->mutable_taint_id(), v.taint);
             }
 
             if (tracker->isMem(v.type)) {
@@ -693,27 +696,27 @@ VOID FlushBuffer(BOOL addKeyframe, const CONTEXT *ctx, THREADID threadid, BOOL n
     if (addKeyframe && (g_kfcount >= KEYFRAME_FREQ) && LogKeyFrames) {
 
         //LOG("Inserting keyframe:\n");
-        //LOG("  addr: " + hexstr(PIN_GetContextReg(ctx, REG_EIP)) + "\n");
+        //LOG("  addr: " + hexstr(PIN_GetContextReg(ctx, LEVEL_BASE::LEVEL_BASE::REG_EIP)) + "\n");
 
         assert(ctx);
 
         frame f;
         tagged_value_list *tol = f.mutable_key_frame()->mutable_tagged_value_lists()->add_elem();
-        AddRegister(tol, ctx, REG_EAX, threadid);
-        AddRegister(tol, ctx, REG_EBX, threadid);
-        AddRegister(tol, ctx, REG_ECX, threadid);
-        AddRegister(tol, ctx, REG_EDX, threadid);
-        AddRegister(tol, ctx, REG_ESI, threadid);
-        AddRegister(tol, ctx, REG_EDI, threadid);
-        AddRegister(tol, ctx, REG_ESP, threadid);
-        AddRegister(tol, ctx, REG_EBP, threadid);
-        AddRegister(tol, ctx, REG_EFLAGS, threadid);
-        AddRegister(tol, ctx, REG_SEG_CS, threadid);
-        AddRegister(tol, ctx, REG_SEG_DS, threadid);
-        AddRegister(tol, ctx, REG_SEG_SS, threadid);
-        AddRegister(tol, ctx, REG_SEG_ES, threadid);
-        AddRegister(tol, ctx, REG_SEG_FS, threadid);
-        AddRegister(tol, ctx, REG_SEG_GS, threadid);
+        AddRegister(tol, ctx, LEVEL_BASE::REG_EAX, threadid);
+        AddRegister(tol, ctx, LEVEL_BASE::REG_EBX, threadid);
+        AddRegister(tol, ctx, LEVEL_BASE::REG_ECX, threadid);
+        AddRegister(tol, ctx, LEVEL_BASE::REG_EDX, threadid);
+        AddRegister(tol, ctx, LEVEL_BASE::REG_ESI, threadid);
+        AddRegister(tol, ctx, LEVEL_BASE::REG_EDI, threadid);
+        AddRegister(tol, ctx, LEVEL_BASE::REG_ESP, threadid);
+        AddRegister(tol, ctx, LEVEL_BASE::REG_EBP, threadid);
+        AddRegister(tol, ctx, LEVEL_BASE::REG_EFLAGS, threadid);
+        AddRegister(tol, ctx, LEVEL_BASE::REG_SEG_CS, threadid);
+        AddRegister(tol, ctx, LEVEL_BASE::REG_SEG_DS, threadid);
+        AddRegister(tol, ctx, LEVEL_BASE::REG_SEG_SS, threadid);
+        AddRegister(tol, ctx, LEVEL_BASE::REG_SEG_ES, threadid);
+        AddRegister(tol, ctx, LEVEL_BASE::REG_SEG_FS, threadid);
+        AddRegister(tol, ctx, LEVEL_BASE::REG_SEG_GS, threadid);
 
         g_twnew->add(f);
 
@@ -979,7 +982,7 @@ void* GetEnvAWrap(CONTEXT *ctx, AFUNPTR fp, THREADID tid) {
  * same instruction to log its operands after execution. */
 VOID PostInstruction(ADDRINT addr, CONTEXT *ctx) {
     g_exit_next = true;
-    PIN_SetContextReg(ctx, REG_INST_PTR, addr);
+    PIN_SetContextReg(ctx, LEVEL_BASE::REG_INST_PTR, addr);
     PIN_ExecuteAt(ctx);
 }
 
@@ -1031,7 +1034,7 @@ VOID AppendBuffer(ADDRINT addr,
         //   cerr << " (" << IMG_Name(i) << ")";
         // } 
         cerr << " thread " << tid
-             << "; " << g_counter << " instructions" << endl
+             << "; " << g_counter << " instructions of which " << g_logcount << " are logged" <<  endl
              << "Code cache size is " << CODECACHE_CodeMemUsed() << endl
              << "Code cache limit is " << CODECACHE_CacheSizeLimit() << endl;
     }
@@ -1064,7 +1067,7 @@ VOID AppendBuffer(ADDRINT addr,
     bool log_all =
         ((LogAllAfterTaint.Value() && !firstTaint)
          || LogAllBeforeTaint.Value());
-    uint32_t pretaint[MAX_VALUES_COUNT];
+    tag_t pretaint[MAX_VALUES_COUNT];
     LEVEL_VM::PIN_REGISTER *pr = NULL;
     ThreadInfo_t *ti = NULL;
 
@@ -1092,7 +1095,7 @@ VOID AppendBuffer(ADDRINT addr,
 
         // Mark everything as untainted
         for (uint32_t i = 0 ; i < values_count ; i++) 
-            values[i].taint = 0;
+            values[i].taint = TagTraits<tag_t>::NO_TAINT;
      
         // Set taint values from taint context
         tracker->setTaintContext(ti->delta);
@@ -1227,11 +1230,11 @@ VOID AppendBuffer(ADDRINT addr,
         /* Let's assume this was a ret for now and increment esp by
          * four.  Of course, this isn't correct in general.  XXX: Fix
          * this so it works for any last instruction. */
-        ADDRINT esp = PIN_GetContextReg(ctx, REG_STACK_PTR);
-        PIN_SetContextReg(ctx, REG_STACK_PTR, esp+4);
-     
+        ADDRINT esp = PIN_GetContextReg(ctx, LEVEL_BASE::REG_STACK_PTR);
+        PIN_SetContextReg(ctx, LEVEL_BASE::REG_STACK_PTR, esp+4);
+
         PIVOT_testpivot(ps, ctx, *tracker);
-     
+
         FlushBuffer(true, ctx, tid, false);
         Cleanup();
         exit(0);
@@ -1405,7 +1408,7 @@ VOID InstrBlock(BBL bbl)
                               IARG_END);
 
         for (uint32_t i = 0; i < MAX_VALUES_COUNT; i++) {
-            opndvals[i].taint = 0;
+            opndvals[i].usage = 0;
             opndvals[i].type = INVALIDREGMEM;
         }
 
@@ -1445,11 +1448,11 @@ VOID InstrBlock(BBL bbl)
 
         for(uint32_t i = 0; i < INS_OperandCount(ins); i++) {
 
-            opndvals[valcount].taint = 0;
+            opndvals[valcount].usage = 0;
             if (INS_OperandRead(ins, i) && (!is_xor))
-                opndvals[valcount].taint = RD;
+                opndvals[valcount].usage= RD;
             if (INS_OperandWritten(ins, i))
-                opndvals[valcount].taint |= WR;
+                opndvals[valcount].usage |= WR;
 	
             /* Handle register operands */
             if (INS_OperandIsReg(ins, i)) {
@@ -1497,9 +1500,9 @@ VOID InstrBlock(BBL bbl)
                     opndvals[valcount].type.size = GetBitsOfReg(basereg);
 
                     if (TaintedIndices || INS_OperandIsAddressGenerator(ins, i))
-                        opndvals[valcount].taint = RD;
+                        opndvals[valcount].usage = RD;
                     else
-                        opndvals[valcount].taint = 0;
+                        opndvals[valcount].usage = 0;
 
                     valcount++;
 
@@ -1513,9 +1516,9 @@ VOID InstrBlock(BBL bbl)
                     opndvals[valcount].type.size = GetBitsOfReg(idxreg);
 
                     if (TaintedIndices || INS_OperandIsAddressGenerator(ins, i))
-                        opndvals[valcount].taint = RD;
+                        opndvals[valcount].usage = RD;
                     else
-                        opndvals[valcount].taint = 0;
+                        opndvals[valcount].usage = 0;
 
                     valcount++;              
 
@@ -1563,7 +1566,7 @@ VOID InstrBlock(BBL bbl)
                                       /* We don't need the value
                                          argument for contexts */
                                       IARG_PTR, 0,
-                                      IARG_UINT32, opndvals[i].taint,
+                                      IARG_UINT32, opndvals[i].usage,
                                       IARG_END);        
                 break;
 
@@ -1574,7 +1577,7 @@ VOID InstrBlock(BBL bbl)
                                       IARG_UINT32, opndvals[i].reg,
                                       /* Pass reference pointer */
                                       IARG_REG_CONST_REFERENCE, opndvals[i].reg,
-                                      IARG_UINT32, opndvals[i].taint,
+                                      IARG_UINT32, opndvals[i].usage,
                                       IARG_END);        
                 break;
               
@@ -1647,17 +1650,17 @@ VOID InstrBlock(BBL bbl)
                Linux uses GS, and Windows uses FS. So, we'll just output a
                base register if we see one of those for now, and hope we
                don't need ES/etc. */
-            if (seg == REG_SEG_FS || seg == REG_SEG_GS) {
+            if (seg == LEVEL_BASE::REG_SEG_FS || seg == LEVEL_BASE::REG_SEG_GS) {
                 REG addreg;
 
                 /* Set the register to add to the buffer */
                 switch(seg) {
-                case REG_SEG_FS:
-                    addreg = REG_SEG_FS_BASE;
+                case LEVEL_BASE::REG_SEG_FS:
+                    addreg = LEVEL_BASE::REG_SEG_FS_BASE;
                     break;
-	    
-                case REG_SEG_GS:
-                    addreg = REG_SEG_GS_BASE;
+
+                case LEVEL_BASE::REG_SEG_GS:
+                    addreg = LEVEL_BASE::REG_SEG_GS_BASE;
                     break;
 
                 default:
@@ -1771,20 +1774,20 @@ VOID ThreadStart(THREADID threadid, CONTEXT *ctx, INT32 flags, VOID *v)
     static int firstthread = true;
 
     LLOG("new thread\n");
-  
+
     NewThreadInfo();
 
     GetLock(&lock, threadid+1);
-  
+
     LOG("New thread starting\n");
     cerr << "Thread " << threadid << " starting" << endl;
 
     if (firstthread) {
         firstthread = false;
 #ifndef _WIN32 /* unix */
-        int argc = *(int*)(PIN_GetContextReg(ctx, REG_ESP));
-        char **argv = (char**) (PIN_GetContextReg(ctx, REG_ESP)+4);
-        char **env = (char**) (PIN_GetContextReg(ctx, REG_ESP)+(argc+1)*4);
+        int argc = *(int*)(PIN_GetContextReg(ctx, LEVEL_BASE::REG_ESP));
+        char **argv = (char**) (PIN_GetContextReg(ctx, LEVEL_BASE::REG_ESP)+4);
+        char **env = (char**) (PIN_GetContextReg(ctx, LEVEL_BASE::REG_ESP)+(argc+1)*4);
         std::vector<frame> frms = tracker->taintArgs(argc, argv);
         g_twnew->add<std::vector<frame> > (frms);
         frms = tracker->taintEnv(env);
@@ -2173,7 +2176,7 @@ VOID SyscallEntry(THREADID tid, CONTEXT *ctx, SYSCALL_STANDARD std, VOID *v)
     //  if (!g_active) return;
 
     // Get the address from instruction pointer (should be EIP).
-    si.sf.mutable_syscall_frame()->set_address(PIN_GetContextReg(ctx, REG_INST_PTR));
+    si.sf.mutable_syscall_frame()->set_address(PIN_GetContextReg(ctx, LEVEL_BASE::REG_INST_PTR));
 
     si.sf.mutable_syscall_frame()->set_thread_id(tid);
 
@@ -2301,13 +2304,13 @@ VOID ExceptionHandler(THREADID threadid, CONTEXT_CHANGE_REASON reason, const CON
     f.mutable_exception_frame()->set_exception_number(info);
     f.mutable_exception_frame()->set_thread_id(threadid);
     if (from) {
-        f.mutable_exception_frame()->set_from_addr(PIN_GetContextReg(from, REG_INST_PTR));
+        f.mutable_exception_frame()->set_from_addr(PIN_GetContextReg(from, LEVEL_BASE::REG_INST_PTR));
     }
     if (to) {
-        f.mutable_exception_frame()->set_to_addr(PIN_GetContextReg(to, REG_INST_PTR));
+        f.mutable_exception_frame()->set_to_addr(PIN_GetContextReg(to, LEVEL_BASE::REG_INST_PTR));
     }
 
-    GetLock(&lock, threadid+1);  
+    GetLock(&lock, threadid+1);
     LLOG("got except lock!\n");
 
     // If we want the exception to be the last thing in the trace when
@@ -2323,17 +2326,17 @@ VOID ExceptionHandler(THREADID threadid, CONTEXT_CHANGE_REASON reason, const CON
     } else if (reason == CONTEXT_CHANGE_REASON_EXCEPTION) {
 
 #ifdef _WIN32
-        ADDRINT pc = PIN_GetContextReg(from, REG_INST_PTR);
+        ADDRINT pc = PIN_GetContextReg(from, LEVEL_BASE::REG_INST_PTR);
         cerr << "Received windows exception @" << pc << " " << info << " in thread " << threadid << endl;
 
         if (info == accessViolation && SEHMode.Value() && g_taint_introduced) {
             cerr << "SEH mode activated!" << endl;
-            ADDRINT old_esp = PIN_GetContextReg(from, REG_STACK_PTR);
-            ADDRINT new_esp = PIN_GetContextReg(to, REG_STACK_PTR);
+            ADDRINT old_esp = PIN_GetContextReg(from, LEVEL_BASE::REG_STACK_PTR);
+            ADDRINT new_esp = PIN_GetContextReg(to, LEVEL_BASE::REG_STACK_PTR);
 
             cerr << "old esp: " << old_esp << " new esp: " << new_esp
-                 << " old eip: " << PIN_GetContextReg(from, REG_INST_PTR) << " new eip: " << PIN_GetContextReg(to, REG_INST_PTR) << endl;
-      
+                 << " old eip: " << PIN_GetContextReg(from, LEVEL_BASE::REG_INST_PTR) << " new eip: " << PIN_GetContextReg(to, LEVEL_BASE::REG_INST_PTR) << endl;
+
             /* The windows exception handler just pushed a bunch of crap
                onto the stack.  Although some of this is user controllable,
                we can untaint it for now, since we are mainly concerned with
@@ -2344,7 +2347,7 @@ VOID ExceptionHandler(THREADID threadid, CONTEXT_CHANGE_REASON reason, const CON
             }
 
             /* Try to find a tainted exception handler. */
-            ADDRINT eptr = PIN_GetContextReg(to, REG_SEG_FS_BASE) 
+            ADDRINT eptr = PIN_GetContextReg(to, LEVEL_BASE::REG_SEG_FS_BASE)
                 + ehandler_fs_offset;
 
             /* eptr points to the &(head of SEH). */
@@ -2369,33 +2372,33 @@ VOID ExceptionHandler(THREADID threadid, CONTEXT_CHANGE_REASON reason, const CON
                     ADDRINT hptr = eptr + ehandler_handler_offset;
 
                     /* hptr holds the address of the handler. */
-                    cerr << "SEH handler M[" << hptr 
+                    cerr << "SEH handler M[" << hptr
                          << "] = " << buf.handler
-                         << " (" << tracker->getMemTaint(hptr, pintrace::INVALIDREGMEM) 
+                         << " (" << tracker->getMemTaint(hptr, pintrace::INVALIDREGMEM)
                          << ")"
                          << endl;
 
                     eptr = buf.nptr;
-	
-                } else { 
+
+                } else {
                     cerr << "Unable to read from " << eptr << endl;
-                    break; 
+                    break;
                 }
 
             }
 
-            ADDRINT esp = PIN_GetContextReg(to, REG_STACK_PTR);
-      
+            ADDRINT esp = PIN_GetContextReg(to, LEVEL_BASE::REG_STACK_PTR);
+
             /* The exception handling stuff will push a lot of data to the
                stack, so take account for that here. */
-            PIN_SetContextReg(to, REG_STACK_PTR, esp-ehandler_esp_offset);
-      
+            PIN_SetContextReg(to, LEVEL_BASE::REG_STACK_PTR, esp-ehandler_esp_offset);
+
             PIVOT_testpivot(ps, to, *tracker);
-      
+
             FlushBuffer(false, from, threadid, false);
             Cleanup();
             exit(1);
-      
+
         } else {
             cerr << "Ignoring exception!" << endl;
         }
@@ -2611,7 +2614,10 @@ int main(int argc, char *argv[])
    
     PIN_AddFiniFunction(Fini, 0);
 
-    ss << PIN_GetPid() << "-" << KnobOut.Value();
+    if (UniqueTraceFile.Value())
+        ss << PIN_GetPid() << "-" << KnobOut.Value();
+    else
+        ss << KnobOut.Value();
    
     g_twnew = new TraceContainerWriter(ss.str().c_str(), bfd_arch_i386, bfd_mach_i386_i386, default_frames_per_toc_entry, false);
 

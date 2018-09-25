@@ -76,6 +76,19 @@ bool defaultPolicy(uint32_t addr, uint32_t length, const char *msg) {
   }
 }
 
+static const uint32_t empty_taint[] = {0};
+const std::set<uint32_t> TagTraits< std::set<uint32_t> >::NO_TAINT = std::set<uint32_t>(empty_taint, empty_taint+1);
+
+std::ostream& operator<<(std::ostream &os, std::set<uint32_t> const & tag) {
+    os << "[";
+    std::set<uint32_t>::const_iterator it;
+    for (it = tag.begin(); it != tag.end(); ++it) {
+        os << *it;
+        if (std::next(it) != tag.end()) os << ", ";
+    }
+    os << "]";
+    return os;
+}
 /**************** Initializers ****************/
 
 //
@@ -177,15 +190,9 @@ uint32_t TaintTracker::getSize(RegMem_t type) {
 
 
 // Combining two taint tags
-uint32_t TaintTracker::combineTaint(uint32_t oldtag, uint32_t newtag)
+tag_t TaintTracker::combineTaint(tag_t const &oldtag, tag_t const & newtag)
 {
-  if (newtag) {// its tainted
-    if (oldtag == NOTAINT)
-      return newtag; // FIXME
-    else 
-      return MIXED_TAINT;
-  }
-  return oldtag;
+    return TagTraits<tag_t>::combineTaint(oldtag, newtag);
 }
 
 // 
@@ -217,9 +224,9 @@ FrameOption_t TaintTracker::introMemTaint(uint32_t addr, uint32_t length, const 
   if ((*pf)(addr, length, source) && length > 0) {
 
     for (unsigned int i = 0; i < length; i++) {
-      uint32_t t = 0;
+      tag_t t = TagTraits<tag_t>::NO_TAINT;
       if (offset == -1 || reuse_taintids == false) {
-        t = taintnum++;
+        TagTraits<tag_t>::assign(t, taintnum++);
       } else {
         // Check if (source, offset+i) has a byte. If not, assign one.
         resource_t r(source, offset+i);
@@ -227,15 +234,15 @@ FrameOption_t TaintTracker::introMemTaint(uint32_t addr, uint32_t length, const 
           t = taint_mappings[r];
           cerr << "found mapping from " << source << " to " << offset+i << " on taint num " << t << endl;
         } else {
-          t = taintnum++;
-          taint_mappings[r] = t;
-          cerr << "adding new mapping from " << source << " to " << offset+i << " on taint num " << t << endl;
+            TagTraits<tag_t>::assign(t, taintnum++);
+            taint_mappings[r] = t;
+            cerr << "adding new mapping from " << source << " to " << offset+i << " on taint num " << t << endl;
         }
       }
       /* Mark memory as tainted */
       setTaint(memory, addr+i, t);
       taint_intro* tfi = fb.f.mutable_taint_intro_frame()->mutable_taint_intro_list()->add_elem();
-      tfi->set_taint_id(t);
+      flushTaint(tfi->mutable_taint_id(), t);
       tfi->set_addr(addr+i);
       uint8_t value;
       assert (PIN_SafeCopy((void*) &value, (void*) (addr+i), 1) == 1);
@@ -259,61 +266,60 @@ FrameOption_t TaintTracker::introMemTaintFromFd(uint32_t fd, uint32_t addr, uint
 }
 
 //
-void TaintTracker::setTaint(context &ctx, uint32_t key, uint32_t tag)
+void TaintTracker::setTaint(context &ctx, uint32_t key, tag_t const & tag)
 {
-  if (tag == NOTAINT)
-    ctx.erase(key);
-  else ctx[key] = tag;
+  if (TagTraits<tag_t>::isTainted(tag)) ctx[key] = tag;
+  else ctx.erase(key);
 }
 
 
 // 
-uint32_t TaintTracker::getTaint(context &ctx, uint32_t elem)
+tag_t TaintTracker::getTaint(context &ctx, uint32_t elem)
 {
   if (exists(ctx, elem))
     return ctx[elem];
-  return NOTAINT;
+  return TagTraits<tag_t>::NO_TAINT;
 }
 
 // 
-uint32_t TaintTracker::getMemTaint(uint32_t addr, RegMem_t type)
+tag_t TaintTracker::getMemTaint(uint32_t addr, RegMem_t type)
 {
-  uint32_t tag = NOTAINT;
+  tag_t tag = TagTraits<tag_t>::NO_TAINT;
   //cerr << "Getting memory " << addr << endl;
   uint32_t size = getSize(type);
   for (uint32_t i = 0 ; i < size ; i++) {
-    uint32_t status = getTaint(memory, addr+i);
-    tag = combineTaint(tag, status);
+    tag = combineTaint(tag, getTaint(memory, addr+i));
   }
   return tag;
 }
 
 void TaintTracker::untaintMem(uint32_t addr) {
-  setTaint(memory, addr, NOTAINT);
+  setTaint(memory, addr, TagTraits<tag_t>::NO_TAINT);
 }
 
 // 
-uint32_t TaintTracker::getRegTaint(context &delta, uint32_t reg)
+tag_t TaintTracker::getRegTaint(context &delta, uint32_t reg)
 {
-  // cout << "Partial register: " << REG_StringShort((REG)reg) << endl;
+  //cout << "Partial register: " << REG_StringShort((REG)reg) << endl;
   REG temp = REG_FullRegName((REG)reg);
-  // cerr << "Full register: " << REG_StringShort(temp) << endl;
+  //cout << "Full register: " << REG_StringShort(temp) << endl;
   return getTaint(delta,temp);
 }
 
 // 
-uint32_t TaintTracker::getReadTaint(context &delta)
+tag_t TaintTracker::getReadTaint(context &delta)
 {
-  uint32_t tag = NOTAINT, tmp_tag = NOTAINT;
+  tag_t tag = TagTraits<tag_t>::NO_TAINT;
   for (uint32_t i = 0 ; i < count ; i++) {
     if ((values[i].usage & RD) == RD) {
       // this is a read
         if (isReg(values[i].type) 
             && (values[i].loc != REG_EFLAGS)) // FIXME: no control-flow taint
-            tmp_tag = getRegTaint(delta, values[i].loc);
+            //return getRegTaint(delta, values[i].loc);
+            tag = combineTaint(tag, getRegTaint(delta, values[i].loc));
         else if (isMem(values[i].type))
-            tmp_tag = getMemTaint(values[i].loc, values[i].type);
-        tag = combineTaint(tag, tmp_tag);
+            //return getMemTaint(values[i].loc, values[i].type);
+            tag = combineTaint(tag, getMemTaint(values[i].loc, values[i].type));
     }
   }
   return tag;
@@ -327,9 +333,9 @@ void TaintTracker::postSysCall(context &delta) {
   /* Windows uses EDX, and Linux uses EAX */
 
 #ifdef _WIN32
-  setTaint(delta, SCOUTREG_WIN, NOTAINT);
+  setTaint(delta, SCOUTREG_WIN, TagTraits<tag_t>::NO_TAINT);
 #else /* linux */
-  setTaint(delta, SCOUTREG_LIN, NOTAINT);
+  setTaint(delta, SCOUTREG_LIN, TagTraits<tag_t>::NO_TAINT);
 #endif
 }
 
@@ -668,7 +674,7 @@ FrameOption_t TaintTracker::taintPostSC(const uint32_t bytes,
         switch (args[0]) {
             case _A1_recv:
               addr = ((uint32_t *)args[1])[1];
-              fd = args[0];
+              fd = ((uint32_t*) args[1])[0];
               length = bytes;
               cerr << "Tainting " 
                    << bytes 
@@ -846,21 +852,17 @@ FrameOption_t TaintTracker::taintPostSC(const uint32_t bytes,
 // Set taint of the current values based on taint context information
 void TaintTracker::setTaintContext(context &delta)
 {
-  uint32_t tag;
-  for (uint32_t i = 0 ; i < count ; i++) {
-      if (isReg(values[i].type)) {
-          if ((tag = getRegTaint(delta, values[i].loc)) != NOTAINT) {
-	// cerr << "register: " << REG_StringShort((REG)values[i].loc) << " is tainted" << endl;
-              values[i].taint = tag;
-          }
-      } else if (isValid(values[i].type)) {
-          if ((tag = getTaint(memory,values[i].loc)) != NOTAINT) {
-              //cerr << "memory: " << values[i].loc << " is tainted" << endl;
-              values[i].taint = tag;
-          }
-      }
-  }
-  
+    tag_t tag;
+    for (uint32_t i = 0 ; i < count ; i++) {
+        if (isReg(values[i].type)) {
+            tag = getRegTaint(delta, values[i].loc);
+        } else if (isValid(values[i].type)) {
+            tag = getTaint(memory,values[i].loc);
+        }
+        if (TagTraits<tag_t>::isTainted(tag)) {
+            values[i].taint = tag;
+        }
+    }
 }
 
 // Reset the taint status of registers and memory
@@ -870,7 +872,7 @@ void TaintTracker::resetTaint(context &delta) {
 }
 
 // Add taint 'tag' to all written operands
-void TaintTracker::addTaintToWritten(context &delta, uint32_t tag)
+void TaintTracker::addTaintToWritten(context &delta, tag_t const & tag)
 {
   uint32_t loc;
   cerr <<hex ;
@@ -902,7 +904,7 @@ void TaintTracker::taintPropagation(context &delta)
 {
   //printMem();
   //printRegs();
-  uint32_t taint_tag = getReadTaint(delta);
+  tag_t taint_tag = getReadTaint(delta);
   addTaintToWritten(delta, taint_tag);
 }
 
@@ -911,21 +913,16 @@ void TaintTracker::taintPropagation(context &delta)
 // Check if the current instruction has tainted operands
 bool TaintTracker::hasTaint(context &delta)
 {
-  cerr << hex ;
-  for (uint32_t i = 0 ; i < count ; i++) {
-    if (isReg(values[i].type)) {
-      if (getRegTaint(delta, values[i].loc) != NOTAINT) {
-	//cerr << "Tainted: " << REG_StringShort((REG)values[i].loc) << endl;
-	return true;
-      }
-    } else if (isValid(values[i].type)) {
-      if (getTaint(memory,values[i].loc) != NOTAINT) {
-	//cerr << "Tainted Memory: " << values[i].loc << endl;
-	return true;
-      }
+    cerr << hex ;
+    for (uint32_t i = 0 ; i < count ; i++) {
+        tag_t taint = TagTraits<tag_t>::NO_TAINT;
+        if (isReg(values[i].type)) taint = getRegTaint(delta, values[i].loc);
+        else if (isValid(values[i].type)) taint = getTaint(memory,values[i].loc);
+
+        if (TagTraits<tag_t>::isTainted(taint)) return true;
+        
     }
-  }
-  return false;
+    return false;
 }
 
 // 
@@ -948,7 +945,7 @@ bool TaintTracker::taintChecking()
   for (uint32_t i = 0 ; i < count ; i++)
     if ((values[i].loc == REG_INST_PTR)
         && (isReg(values[i].type))
-        && (values[i].taint != NOTAINT)) {
+        && TagTraits<tag_t>::isTainted(values[i].taint)) {
       return false;
     }
   return true;

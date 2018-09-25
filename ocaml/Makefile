@@ -9,14 +9,7 @@ export BAP_DIR=$(CURDIR)/..
 
 export OCAMLMAKEFILE=OCamlMakefile
 export LIBASMIR=../libasmir
-export BIGINT=$(BAP_DIR)/zarith-1.0
-export BATT=$(BAP_DIR)/batteries/_build/src
-export OUNIT=$(BAP_DIR)/ounit-1.1.0/_build/src/
-export PCRE=$(BAP_DIR)/pcre-ocaml/lib
-export OCAMLGRAPH=$(BAP_DIR)/ocamlgraph-1.8
-export OBJSIZE=$(BAP_DIR)/objsize-0.16
 export LIBTRACE=$(BAP_DIR)/libtracewrap/libtrace/src/ocaml
-export PIQIBUILDDIR=$(BAP_DIR)/libtracewrap/libtrace/piqi/piqi/build/lib/ocaml
 
 include $(LIBASMIR)/makefile.inc
 export SOLVER=$(BAP_DIR)/solvers
@@ -115,10 +108,8 @@ export SOURCES = \
 RESULT = bap
 DOC_FILES := $(filter %.mli, $(SOURCES)) $(filter %.ml, $(SOURCES))
 
-
-
 # ocamlfind packages required
-export PACKS = bigarray str num unix camomile threads piqi.lib $(LLVM_PACKS)
+export PACKS = bigarray str num unix camomile threads zarith batteries oUnit pcre objsize ocamlgraph $(LLVM_PACKS)
 export DOCPACKS = $(PACKS)
 export YFLAGS = -v
 
@@ -126,12 +117,11 @@ export USE_CAMLP4 = yes
 
 export CLIBS = asmir vex opcodes bfd iberty stdc++
 export CLIBS += $(SOLVER_CLIBS)
-export OCAMLPATH = $(PIQIBUILDDIR)
 export CFLAGS = -g
 export LDFLAGS = $(LIBASMIR_LDFLAGS) $(SOLVER_LDFLAGS)
 export PPFLAGS = $(SOLVER_PPFLAGS) $(LLVM_PPFLAGS)
-export INCDIRS = $(BIGINT) $(BATT) $(OUNIT) $(PCRE) $(OCAMLGRAPH) $(OBJSIZE) $(LIBTRACE) $(LIBTRACE)/piqi
-export LIBS = zarith batteries oUnit pcre graph objsize libtrace
+export INCDIRS = $(LIBTRACE) $(LIBTRACE)/piqi
+export LIBS = libtrace
 export RESULTDEPS = $(LIBASMIR)/src/libasmir.a $(VEX_DIR)/libvex.a $(LIBTRACE)/libtrace.cmxa
 export LIBDIRS = $(LIBASMIR)/src $(VEX_DIR)
 export LIBDIRS += $(SOLVER_LIBDIRS) $(LIBTRACE)

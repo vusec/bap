@@ -789,7 +789,8 @@ module SerializedTrace = struct
     let get_attrs =
       let convert_taint = function
         | `no_taint -> Taint 0
-        | `taint_id(id) -> Taint (Int64.to_int id)
+        | `multiple l -> TaintList (BatList.map (Int64.to_int) l)
+        | `single t -> Taint (Int64.to_int t)
         | `taint_multiple -> Taint (-1)
       in
       let convert_usage = function
@@ -838,7 +839,7 @@ module SerializedTrace = struct
                    index=a;
                    value=v;
                    usage=WR;
-                   taint=Taint (Int64.to_int tid)})
+                   taint=convert_taint tid})
       in
       function
         | `std_frame({Std_frame.operand_list=ol}) -> List.map convert_operand_info ol

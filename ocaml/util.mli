@@ -34,7 +34,7 @@ val mapn : (int -> 'a) -> int -> 'a list
 val list_mem : ?eq:('a -> 'a -> bool) -> 'a -> 'a list -> bool
 
 (** @return the arg max of [f] where the arguments come from [l] *)
-val list_argmax : ?compare:('b -> 'b -> int) -> ('a -> 'b) -> 'a list -> 'a * 'b
+(*val list_argmax : ?compare:('b -> 'b -> int) -> ('a -> 'b) -> 'a list -> 'a * 'b*)
 
 (** @return a union b, assuming a and b are sets *)
 val list_union : 'a list -> 'a list -> 'a list
@@ -100,7 +100,7 @@ val list_remove: 'a list -> int -> int -> 'a list
 val list_delete: 'a list -> 'a -> 'a list
 
 (** Lexicographic compare of lists *)
-val list_compare: ('a -> 'a -> int) -> ('a list) -> ('a list) -> int
+(*val list_compare: ('a -> 'a -> int) -> ('a list) -> ('a list) -> int *)
 
 (** Calls f with each element in the cartesian product of the input lists *)
 val list_cart_prod2: ('a -> 'b -> unit) -> ('a list) -> ('b list) -> unit

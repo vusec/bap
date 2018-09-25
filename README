@@ -1,13 +1,59 @@
-BAP: The Binary Analysis Platform. For more information see our
-project webpage at http://bap.ece.cmu.edu/
+# BAP with special Kamino sauce
 
-For installation instruction see the INSTALL file.
+This is a modified BAP version that has the following enchantments:
 
-For copyright information see the COPYING file.
+* Customs taint tags
+* External dependencies
 
+## Install
 
-This is a pre-alpha release. It is completely unsupported. If you need help,
-this is not for you; please wait for a later version or learn some problem
-solving skills. If you find a bug, please submit them to
-https://kestrel.ece.cmu.edu/bugzilla/  Notice that we do not garuntee any
-support.
+Given that the dependencies are now external, one needs to install the following
+Ocaml packages:
+
+1. zarith
+2. pcre-ocaml
+3. batteries 1.4.3
+4. ounit 1.1.2
+5. ocamlgraph
+6. camomile
+7. piqi
+8. objsize
+
+Using opam:
+
+      opam pin -f batteries 1.4.3
+      opam pin -f ounit 1.1.2
+
+      opam install zarith
+      opam install pcre-ocaml
+      opam install batteries
+      opam install ounit
+      opam install ocamlgraph
+      opam install camomile
+      opam install piqi
+      opam install objsize
+
+## Patching easy-format
+easy-format version 1.0.1 in opam builds its libraries in such a fashion that
+it fails to link properly when referenced using ocp-build.
+The patches in the patches folder fixes this.
+
+After installing the Ocaml packges run the following commands to rebuild
+easy-format
+
+        cd $HOME/.opam/archives
+        tar xzf easy-format.1.0.1+opam.tar.gz
+        cp $BAP_ROOT/patches/*.diff easy-format.1.0.1/
+        tar czf easy-format.1.0.1+opam.tar.gz easy-format.1.0.1
+        rm -Rf easy-format.1.0.1
+        opam reinstall easy-format
+
+Besides the above Ocaml packages, we also need the protobuffer package and compiler.
+On Ubuntu, run:
+
+    sudo apt-get install libprotobuf-dev:i386
+
+Debian Wheezy doesn't provide a multiarch package, so a chroot is required!
+The protobuffer compiler on Debian resides in a separate package.
+
+    sudo apt-get install protobuf-compiler

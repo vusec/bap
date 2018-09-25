@@ -60,7 +60,6 @@ class IRVisitor {
 
 class DefaultIRVisitor : public virtual IRVisitor {
  public:
-  DefaultIRVisitor() {};
   virtual void visitBinOp(BinOp *);
   virtual void visitUnOp(UnOp *);
   virtual void visitConstant(Constant *);
@@ -89,7 +88,6 @@ class DefaultIRVisitor : public virtual IRVisitor {
 class IRChangeVisitor : public IRVisitor {
  public: 
   virtual ~IRChangeVisitor() { }; 
-  IRChangeVisitor() {};
 
   virtual void visitBinOp(BinOp *);
   virtual void visitUnOp(UnOp *);

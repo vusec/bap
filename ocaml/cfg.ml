@@ -4,15 +4,71 @@ open Type
 module D = Debug.Make(struct let name = "Cfg" and default=`NoDebug end)
 open D
 
-(* a label map *)
-module LM = Map.Make(struct type t = label let compare=compare end)
-
 type bbid =
   | BB_Entry
   | BB_Exit
   | BB_Indirect
   | BB_Error
   | BB of int
+
+module type S =
+sig
+    type lang
+
+    module G : 
+    sig 
+        module V  : 
+        sig 
+            type t 
+            type label 
+        end
+        module E :
+        sig
+            type t
+        end
+        type t
+    end
+
+    val find_vertex : G.t -> G.V.label -> G.V.t
+    val get_stmts : G.t -> G.V.t -> lang
+    val default : lang
+    val join_stmts : lang -> lang -> lang
+    val lang_to_string : lang -> string
+
+    val fold_labels : (Type.label -> 'a -> 'a) -> lang -> 'a -> 'a 
+    val remove_labels : G.t -> G.V.t -> G.t
+
+    val set_stmts : G.t -> G.V.t -> lang -> G.t
+    val newid : G.t -> bbid * G.t
+    
+    val create_vertex : G.t -> lang -> G.t * G.V.t
+    val remove_vertex : G.t -> G.V.t -> G.t
+
+    val empty : unit -> G.t
+    val copy : G.t -> G.t
+    val add_vertex : G.t -> G.V.t -> G.t
+    val add_edge : G.t -> G.V.t -> G.V.t -> G.t
+    val add_edge_e : G.t -> G.E.t -> G.t
+    
+    val remove_edge : G.t -> G.V.t -> G.V.t -> G.t
+    val remove_edge_e : G.t -> G.E.t -> G.t
+
+    val copy_map : G.t -> G.t
+
+    val v2s : G.V.t -> string 
+end
+
+module type Language =
+sig
+  type t
+  val default : t
+  val join : t -> t -> t
+  val iter_labels : (label->unit) -> t -> unit
+  val to_string : t -> string
+end
+
+(* a label map *)
+module LM = Map.Make(struct type t = label let compare=compare end)
 
 let bbid_to_string = function
   | BB_Entry     -> "BB_Entry"
@@ -38,16 +94,12 @@ module BS = Set.Make(BBid)
 module BH = Hashtbl.Make(BBid)
 module BM = Map.Make(BBid)
 
-
-
 module E =
 struct
   type t = bool option
   let compare = compare
   let default = None
 end
-
-
 
 module type CFG =
 sig
@@ -83,15 +135,6 @@ type ('a,'b,'c) pcfg =
       l: 'c;
       nextid : int
     }
-
-module type Language =
-sig
-  type t
-  val default : t
-  val join : t -> t -> t
-  val iter_labels : (label->unit) -> t -> unit
-  val to_string : t -> string
-end
 
 (* Begin persistent implementation *)
 module MakeP (Lang: Language) =

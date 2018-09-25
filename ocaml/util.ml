@@ -38,14 +38,15 @@ let rec list_mem ?(eq=(=)) ele = function
     else list_mem ~eq ele tl
   | [] -> false
 
-let list_argmax ?(compare=compare) f = function
+(*let list_argmax ?(compare=compare) f = function
   | [] -> raise (Invalid_argument "list_argmax")
   | hd::tl ->
     (List.fold_left
        (fun ((maxx,maxy) as max) x ->
          let y = f x in
-         if compare y maxy > 0 then (x,y)
-         else max) (hd, f hd) tl)
+         let (cmp:int) = compare y maxy in
+         if cmp > 0 then (x,y)
+         else max) (hd, f hd) tl)*)
 
 let list_union a b =
   List.fold_left (fun acc x ->
@@ -125,7 +126,7 @@ let list_delete l e =
   in
     delete_aux [] l
 
-let list_compare = BatList.make_compare
+(*let list_compare = BatList.make_compare*)
 
 let list_cart_prod2 f l1 l2 =
   List.iter

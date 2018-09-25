@@ -16,6 +16,8 @@ module V = struct
 
   (* is it faster to use the generic compare, or < and = ? *)
   let compare (V(x,_,_)) (V(y,_,_)) = compare x y
+
+  let construct idx name typ = V (idx, name, typ)
 end
 
 include V

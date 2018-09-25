@@ -35,3 +35,6 @@ val compare : t -> t -> int
 module VarHash : Hashtbl.S with type key = t
 module VarMap : Map.S with type key = t
 module VarSet : Set.S with type elt = t
+
+(* Kamino required functions *)
+val construct : int -> string -> Type.typ -> t

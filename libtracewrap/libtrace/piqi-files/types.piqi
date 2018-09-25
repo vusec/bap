@@ -13,9 +13,28 @@
        .type int
 ]
 
-.alias [
-       .name taint-id
-       .type uint64
+%.alias [
+%       .name taint-id
+%       .type uint64
+%]
+
+.list [
+    .name taint-id-list
+    .type uint64
+]
+
+.variant [
+        .name taint-id
+
+        .option [
+            .name single
+            .type uint64
+        ]
+
+        .option [
+            .name multiple
+            .type taint-id-list
+        ]
 ]
 
 .alias [

@@ -86,12 +86,12 @@ let casttype_of_string = function
 %%
 
 program: 
-      | stmtlist EOF { $1 }
+  | stmtlist EOF { $1 }
 
-          stmtlist:
-      | revstmtlist  { List.rev $1 }
+stmtlist:
+  | revstmtlist  { List.rev $1 }
 
-        /* This is needed, because if we say stmtlist := stmt stmtlist, then the parser
+  /* This is needed, because if we say stmtlist := stmt stmtlist, then the parser
       needs to put all the stmts on a stack, since it can't process them until
         it parses the last one. Said stack is limited to Sys.max_array_length, which
           means than on i386, we woulddn't be able to parse a stmtlist of more than
@@ -99,30 +99,42 @@ program:
               This is confirmed at
               http://plus.kaist.ac.kr/~shoh/ocaml/ocamllex-ocamlyacc/ocamlyacc-tutorial/sec-recursive-rules.html
             */
-              revstmtlist:
-        | revstmtlist stmt  {  $2 :: $1 }
-        | { [] }
+revstmtlist:
+  | revstmtlist stmt  {  $2 :: $1 }
+  | { [] }
 
-            stmt:
-        | JMP expr attrs semi { Jmp($2, $3) }
-        | CJMP expr COMMA expr COMMA expr attrs semi { CJmp($2, $4, $6, $7)  }
-        | SPECIAL STRING attrs semi { Special($2, $3)}
-        | lval ASSIGN expr attrs semi { Move($1, $3, $4) }
-        | lval EQUAL expr attrs semi { Move($1, $3, $4) }
-        | HALT expr attrs semi { Halt($2, $3) }
-        | ASSERT expr attrs semi { Assert($2, $3) } 
-        | LABEL ID attrs { Label(Name $2, $3) }
-        | ADDR INT attrs { Label(Addr (int64_of_big_int $2), $3) }
-        | COMMENT attrs { Comment($1, $2) }
+stmt:
+  | JMP expr attrs semi { Jmp($2, $3) }
+  | CJMP expr COMMA expr COMMA expr attrs semi { CJmp($2, $4, $6, $7)  }
+  | SPECIAL STRING attrs semi { Special($2, $3)}
+  | lval ASSIGN expr attrs semi { Move($1, $3, $4) }
+  | lval EQUAL expr attrs semi { Move($1, $3, $4) }
+  | HALT expr attrs semi { Halt($2, $3) }
+  | ASSERT expr attrs semi { Assert($2, $3) } 
+  | LABEL ID attrs { Label(Name $2, $3) }
+  | ADDR INT attrs { Label(Addr (int64_of_big_int $2), $3) }
+  | COMMENT attrs { Comment($1, $2) }
 
 
-            plusminusint:
-        | INT { $1 }
-        | MINUS INT { minus_big_int $2 }
+plusminusint:
+  | INT { $1 }
+  | MINUS INT { minus_big_int $2 }
 
-            context:
-        | STRING LSQUARE INT RSQUARE EQUAL INT COMMA plusminusint COMMA styp { {name=$1; mem=true; t=$10; index=int64_of_big_int $3; value=$6; usage=RD; (* XXX fix me *) taint=Taint(int_of_big_int $8)} } /* memory */
-| STRING EQUAL INT COMMA plusminusint COMMA typ { {name=$1; mem=false; t=$7; index=0L; value=$3; usage=RD; (* XXX fix me *) taint=Taint(int_of_big_int $5)} } /* non memory */
+plusminusintlist:
+  | plusminusint COMMA plusminusintlist { $1 :: $3 }
+  | plusminusint {[$1]}
+  | { [] }
+
+plusminusintarray:
+  | LSQUARE plusminusintlist RSQUARE { $2 }
+
+context:
+  /* Context with single taint */
+  | STRING LSQUARE INT RSQUARE EQUAL INT COMMA plusminusint COMMA styp { {name=$1; mem=true; t=$10; index=int64_of_big_int $3; value=$6; usage=RD; (* XXX fix me *) taint=Taint(int_of_big_int $8)} } /* memory */
+  | STRING EQUAL INT COMMA plusminusint COMMA typ { {name=$1; mem=false; t=$7; index=0L; value=$3; usage=RD; (* XXX fix me *) taint=Taint(int_of_big_int $5)} } /* non memory */
+  /* Context with multiple taint (i.e., a list of taint values  */
+  | STRING LSQUARE INT RSQUARE EQUAL INT COMMA plusminusintarray COMMA styp { {name=$1; mem=true; t=$10; index=int64_of_big_int $3; value=$6; usage=RD; (* XXX fix me *) taint=TaintList(BatList.map int_of_big_int $8)} } /* memory */
+  | STRING EQUAL INT COMMA plusminusintarray COMMA typ { {name=$1; mem=false; t=$7; index=0L; value=$3; usage=RD; (* XXX fix me *) taint=TaintList(BatList.map int_of_big_int $5)} } /* non memory */
 
 attrs:
 |    { [] }

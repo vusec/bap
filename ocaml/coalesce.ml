@@ -79,12 +79,18 @@ struct
           let successors_of_successors_e = G.succ_e graph (List.hd successors) in
           let newsuccessors = G.succ graph (List.hd successors) in
           let add_edge graph edge =
-            dprintf "Adding edge from %s to %s" (C.v2s init) (C.v2s (C.G.E.dst edge));
-            let newedge = C.G.E.create init (C.G.E.label edge) (C.G.E.dst edge) in
+            (* Special case a loop that need to turn into a self-loop
+               after coalescing, but is prevented by a redundant jump
+               BB. That is, the destination is not init but a BB in
+               the successor list that will be removed after coalescing.
+            *)
+            let dst = C.G.E.dst edge in
+            let dst' = if List.mem dst successors then init else dst in
+            dprintf "Adding edge from %s to %s" (C.v2s init) (C.v2s dst');
+            let newedge = C.G.E.create init (C.G.E.label edge) dst' in
             C.add_edge_e graph newedge
           in
           let graph = List.fold_left add_edge graph successors_of_successors_e in
-
           (* Also add edges from any predecessors to init. This only
              happens when there are comments/labels would be coalesced
              before the original targets. *)
@@ -117,8 +123,10 @@ struct
           (successors, graph)
         )
      in
-
-     List.fold_left fold_dfs graph worklist
+     List.fold_left (fun g v ->
+         if G.mem_vertex g v
+         then fold_dfs g v
+         else g) graph worklist
    in
    let graph = fold_dfs cfg entry_node in
    graph

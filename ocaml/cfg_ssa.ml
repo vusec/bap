@@ -198,6 +198,7 @@ let stmts2ssa ctx ss =
   let revstmts = List.fold_left (fun rs s -> stmt2ssa ctx rs s) [] ss in
     List.rev revstmts
 
+let is_temp var = (Str.string_before (Var.name var) 3) = "T_t"
 
 (* This is only for use by trans_cfg, as it has some hacks *)
 let defsites cfg =
@@ -206,8 +207,13 @@ let defsites cfg =
   let defs stmts =
     let res = ref [] in
     let f = function
-	| Ast.Move(v, _, _) ->  res := v :: !res; globals := v :: !globals
-	| _ -> ()
+    | Ast.Move(v, _, _) ->
+            res := v :: !res;
+            (* Temporaries are local and shouldn't be in phis *)
+            (match is_temp v with
+            | true -> ()
+            | false -> globals := v :: !globals)
+    | _ -> ()
     in
     List.iter f stmts;
     !res

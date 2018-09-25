@@ -19,22 +19,11 @@ AC_PROG_CPP
 AC_PROG_RANLIB
 AC_PROG_OCAML
 
+AC_CHECK_PROG(HAVE_PKG_CONFIG, pkg-config, yes, AC_MSG_ERROR([cannot find protobuf compiler]))
+
 # Checks for libraries.
 # FIXME: Replace `main' with a function in `-lpthread':
 AC_CHECK_LIB([pthread], [main])
-
-AC_ARG_WITH([batteries],
-            [AS_HELP_STRING([--with-batteries],
-            [specify path to batteries])],
-            [with_batteries="$( cd $withval && pwd )"],
-            [])
-
-AS_IF([test "x$with_batteries" != x],
-      [AC_CHECK_OCAML_MODULE(has_batteries,batteries,[BatHashtbl],[$with_batteries])
-       AS_IF([test "x$has_batteries" = "xno"],
-             [AC_MSG_FAILURE([batteries not found in $with_batteries])],
-             [AC_SUBST(BAT_DIR, [$with_batteries])])],
-      [AC_MSG_FAILURE([You must specify the path to batteries using --with-batteries])])
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdint.h])

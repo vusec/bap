@@ -66,7 +66,7 @@ type pos = (string * int)
 
 (** {5 Extra attributes} *)
 
-type taint_type = Taint of int
+type taint_type = Taint of int | TaintList of int list
 type usage = RD | WR | RW
 
 (** Information about a concrete operand from a trace *)

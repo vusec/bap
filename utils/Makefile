@@ -11,14 +11,7 @@ export BAP_DIR=$(CURDIR)/..
 export USE_CAMLP4 = yes
 
 export BAP_OCAMLDIR=$(BAP_DIR)/ocaml
-export BIGINT=$(BAP_DIR)/zarith-1.0
-export BATT=$(BAP_DIR)/batteries/_build/src
-export OUNIT=$(BAP_DIR)/ounit-1.1.0/_build/src
-export PCRE=$(BAP_DIR)/pcre-ocaml/lib
-export OCAMLGRAPH=$(BAP_DIR)/ocamlgraph-1.8
-export OBJSIZE=$(BAP_DIR)/objsize-0.16
 export LIBTRACE=$(BAP_DIR)/libtracewrap/libtrace/src/ocaml
-export PIQIBUILDDIR=$(BAP_DIR)/libtracewrap/libtrace/piqi/piqi/build/lib/ocaml
 
 export OCAMLMAKEFILE=$(BAP_OCAMLDIR)/OCamlMakefile
 
@@ -32,10 +25,9 @@ endif
 #export OCAMLFIND_IGNORE_DUPS_IN=$(BAP_DIR)/bigint-3.12/otherlibs/num
 
 # ocamlfind packages required
-export PACKS = bigarray str num unix camomile piqi.lib $(LLVM_PACKS)
-export LIBS = zarith batteries objsize oUnit graph pcre libtrace bap
-export INCDIRS = $(BAP_OCAMLDIR) $(BIGINT) $(BATT) $(OUNIT) $(PCRE) $(OCAMLGRAPH) $(OBJSIZE) $(LIBTRACE)
-export OCAMLPATH = $(PIQIBUILDDIR)
+export PACKS = bigarray str num unix camomile piqi.lib piqi.runtime zarith batteries objsize oUnit ocamlgraph pcre $(LLVM_PACKS)
+export LIBS = libtrace bap
+export INCDIRS = $(BAP_OCAMLDIR) $(LIBTRACE) $(LIBTRACE)/piqi
 
 # -rdynamic lets LLVM JIT see dynamic symbols
 export LDFLAGS = -rdynamic

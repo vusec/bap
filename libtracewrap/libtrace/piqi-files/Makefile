@@ -11,15 +11,18 @@ MLEXTFILES=$(addsuffix _piqi_ext.ml, $(basename $(PIQIFILE)))
 PROTOCFILES=$(addsuffix .piqi.pb.cc, $(basename $(PIQIFILE)))
 PROTOHFILES=$(addsuffix .piqi.pb.h, $(basename $(PIQIFILE)))
 
-PIQIDIR=$(ROOTDIR)/piqi/piqi/bin
-PIQI=$(PIQIDIR)/piqi
-PIQIC=$(PIQIDIR)/piqic
+PIQI=piqi
+PIQIC=piqic
 PROTOC=$(ROOTDIR)/protobuf/src/protoc
 
 PIQIFLAGS = --pp
-#PIQIFLAGS = --pp --leave-tmp-files
 
-all: $(PROTOCFILES) $(PROTOHFILES) $(MLFILES) $(MLEXTFILES)
+# Install direclty, otherwise depending components fail to build, because
+# BAP builds everything in one go.
+all: install
+
+# Empty target to be compatible with the BAP build system
+tags:
 
 $(PIQIFILE) : $(OTHERPIQIFILES)
 	touch $@
@@ -41,9 +44,11 @@ clean:
 
 .PHONY: install-pb install-piqi install
 install-pb: $(PROTOCFILES) $(PROTOHFILES)
+	mkdir -p $(TRACEFORMATDIR)
 	cp $^ $(TRACEFORMATDIR)
 
 install-piqi: $(MLFILES) $(MLEXTFILES)
+	mkdir -p $(MLDIR)
 	cp $^ $(MLDIR)
 
 install: install-pb install-piqi

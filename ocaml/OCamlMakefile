@@ -54,7 +54,9 @@ export VMTHREADS
 export ANNOTATE
 export USE_CAMLP4
 
+INCDIRS += $(shell ocamlfind query camlidl)
 export INCDIRS
+LIBDIRS += $(shell ocamlfind query camlidl)
 export LIBDIRS
 export EXTLIBDIRS
 export RESULTDEPS
@@ -859,7 +861,7 @@ dcl:	debug-code-library
 # generates byte-code libraries with debugging information (native code)
 debug-native-code-library:	$(PRE_TARGETS)
 			$(QUIET)$(MAKE) -r -f $(OCAMLMAKEFILE) \
-				$(RES_CLIB) $(NCRESULT).cma \
+				$(RES_CLIB) $(NCRESULT).cmxa \
 				REAL_RESULT="$(NCRESULT)" make_deps=yes \
 				REAL_OCAMLC="$(OCAMLOPT)" \
 				CREATE_LIB=yes \

@@ -1,13 +1,8 @@
 OCAMLMAKEFILE = ./OCamlMakefile
 
 ROOTDIR = @LIBTRACE_DIR@
-PIQIBUILDDIR = $(ROOTDIR)/piqi/piqi/build/lib/ocaml
-BATT = @BAT_DIR@
-#BATT = $(ROOTDIR)/batteries/_build/src
 
-export OCAMLPATH = $(PIQIBUILDDIR)
-
-PACKS = piqi.lib
+PACKS = piqi.lib piqi.runtime batteries
 
 SOURCES = piqi/frame_piqi.ml \
 	  piqi/frame_piqi_ext.ml \
@@ -16,11 +11,13 @@ SOURCES = piqi/frame_piqi.ml \
 	  trace_container.ml
 RESULT  = libtrace
 
-INCDIRS += $(BATT)
-LIBS += batteries
-
 all:
 	$(MAKE) ncl
 	$(MAKE) dcl
+
+tags: TAGS
+
+TAGS: $(SOURCES)
+	-otags $^
 
 include $(OCAMLMAKEFILE)

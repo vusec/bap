@@ -113,32 +113,53 @@ if test $? != 0; then
    exit -1
 fi
 
-#ocamlfind query ocamlgraph
-#if test $? != 0; then
-#   echo "bap requires libbitstring-ocaml-dev"
-#   exit -1
-#fi
+ocamlfind query ocamlgraph
+if test $? != 0; then
+   echo "bap requires ocamlgraph"
+   exit -1
+fi
 
-dnl ocamlfind query ocamlgraph
-dnl if test $? != 0; then
-dnl     echo "bap needs libocamlgraph-ocaml-dev"
-dnl     exit -1
-dnl fi
-dnl ocamlfind query extlib
-dnl if test $? != 0; then
-dnl     echo "bap needs libextlib-ocaml-dev"
-dnl     exit -1
-dnl fi
-dnl ocamlfind query batteries
-dnl if test $? != 0; then
-dnl      echo "bap needs ocaml-batteries-included"
-dnl      exit -1
-dnl fi
-# ocamlfind query sqlite3
-# if test $? != 0; then
-#     echo "bap needs ocaml-sqlite3 from http://ocaml.info/home/ocaml_sources.html#ocaml-sqlite3"
-#     exit -1
-# fi
+ocamlfind query batteries
+if test $? != 0; then
+   echo "bap requires batteries"
+   exit -1
+fi
+
+ocamlfind query oUnit
+if test $? != 0; then
+   echo "bap requires oUnit"
+   exit -1
+fi
+
+ocamlfind query zarith
+if test $? != 0; then
+   echo "bap requires zarith"
+   exit -1
+fi
+
+ocamlfind query zarith
+if test $? != 0; then
+   echo "bap requires zarith"
+   exit -1
+fi
+
+ocamlfind query piqi
+if test $? != 0; then
+   echo "bap requires piqi"
+   exit -1
+fi
+
+ocamlfind query pcre
+if test $? != 0; then
+   echo "bap requires pcre"
+   exit -1
+fi
+
+ocamlfind query objsize
+if test $? != 0; then
+   echo "bap requires objsize"
+   exit -1
+fi
 
 # Where is VEX ?
 # stolen from valgrind's configure.in
@@ -264,9 +285,3 @@ AC_CONFIG_FILES([Makefile
                  libasmir/src/Makefile
                  libtracewrap/Makefile])
 AC_OUTPUT
-
-# Configure ocamlgraph
-(cd ocamlgraph-1.8 && ./configure)
-
-# Configure zarith
-(cd zarith-1.0 && ./configure)

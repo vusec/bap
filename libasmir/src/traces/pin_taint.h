@@ -25,16 +25,142 @@ typedef uint32_t var;
 //  * 0        -> untainted
 //  * ffffffff -> mixed taint
 //  * other n  -> nth input byte
-#define MIXED_TAINT 0xFFFFFFFF
-#define NOTAINT 0
-typedef uint32_t t;
+
+// typedef uint32_t tag_t;
+
+// XXX: Move to c++11 missing feature header!
+#if !defined(__GXX_EXPERIMENTAL_CXX0X__)
+namespace std {
+    template<class ForwardIt>
+    ForwardIt next(ForwardIt it, typename std::iterator_traits<ForwardIt>::difference_type n = 1)
+    {
+        std::advance(it, n);
+        return it;
+    }
+}
+#endif
+
+template <typename T> struct TagTraits;
+
+template <>
+struct TagTraits<uint32_t> {
+    typedef uint32_t type;
+    enum {NO_TAINT = 0, MIXED_TAINT = 0xFFFFFFFF};
+
+    const static bool isContainer = false;
+
+    static bool isTainted(uint32_t tag) {
+        return tag != NO_TAINT;
+    }
+
+    static uint32_t combineTaint(uint32_t oldtag, uint32_t newtag) {
+        if (isTainted(newtag)) {// its tainted
+            if ( !isTainted(oldtag) )
+                return newtag; // FIXME
+            else 
+                return MIXED_TAINT;
+        }
+        return oldtag;
+    }
+
+    static void assign(uint32_t & tag, uint32_t value) {
+        tag = value;
+    }
+
+    static bool isCombined (uint32_t tag) {
+        return tag == MIXED_TAINT;
+    }
+};
+
+#include <set>
+#include <algorithm>
+#include <iterator>
+
+typedef std::set<uint32_t> tag_t;
+
+template <>
+struct TagTraits< std::set<uint32_t> > {
+    typedef uint32_t inner_type;
+    typedef std::set<inner_type> type;
+    static const std::set<uint32_t> NO_TAINT;
+    
+    const static bool isContainer = true;
+    
+    static void removeNoTaint(type & tag) {
+        if (tag.size() > 1) tag.erase(0);
+    }
+
+    static type combineTaint(type const & oldtag, type const & newtag) {
+        type res;
+
+        std::set_union(oldtag.begin(), oldtag.end(), newtag.begin(), newtag.end(),
+                std::inserter(res, res.begin()));
+
+        /* When combined with no taint, it is no longer needed. */
+        removeNoTaint(res);
+
+        return res;
+    }
+    
+    static void assign(type & tag, uint32_t value) {
+        tag.insert(value);
+        
+        /* When assigned to a 'no taint', it is no longer needed. */
+        if (tag.size() == 2) removeNoTaint(tag);
+    }
+
+    static bool isTainted(type const & tag) {
+        return tag != NO_TAINT;
+    }
+
+    static bool isCombined(type const & tag) {
+        return tag.size() > 1;
+    }
+
+    static std::string toString(type const & tag) {
+        std::string res("[");
+        for (type::const_iterator it = tag.begin(); it != tag.end(); ++it) {
+            res += hexstr(*it);
+            if (std::next(it, 1) != tag.end()) res += ",";
+        }
+        res += "]";
+        return res;
+    }
+
+
+};
+
+std::ostream& operator<<(std::ostream &os, std::set<uint32_t> const & tag);
+
+// XXX: Move to c++11 missing feature header!
+#if !defined(__GXX_EXPERIMENTAL_CXX0X__)
+template<bool B, class T = void>
+struct enable_if {};
+ 
+template<class T>
+struct enable_if<true, T> { typedef T type; };
+#endif
+
+template <typename T>
+typename enable_if<TagTraits<T>::isContainer, void>::type flushTaint(taint_id* id, T const & tag)
+{
+    for (typename T::const_iterator it = tag.begin(); it != tag.end(); ++it) {
+        id->mutable_multiple()->add_elem(*it);
+    }
+}
+
+template <typename T>
+typename enable_if<!TagTraits<T>::isContainer, void>::type flushTaint(taint_id * id, T const & tag)
+{
+    id->set_single(tag);
+}
 
 #define MASK1 0x000000FF
 #define MASK2 0x0000FF00
 #define MASK3 0x00FF0000
 #define MASK4 0xFF000000
 
-typedef std::map<var,t> context;
+typedef std::map<var,tag_t> context;
 
 // Some bit masks
 #define LOW8   0xff
@@ -60,7 +186,7 @@ struct ValSpecRec {
   uint32_t loc;                // Location of this value.
   pintrace::PIN_REGISTER value;// Actual value.
   uint32_t usage;              // Operand usage (R, RW, W, etc)
-  uint32_t taint;              // Taint status of the value
+  tag_t taint;                  // Taint status of the value
 };
 
 /** Like [frame option] type in ML.  If b is true, then f is a valid,
@@ -164,7 +290,7 @@ namespace pintrace { // We will use namespace to avoid collision
 
      // Helpers
      // A function to check whether the instruction arguments are tainted
-     uint32_t getReadTaint(context &delta);
+     tag_t getReadTaint(context &delta);
 
      bool hasTaint(context &delta);
 
@@ -180,9 +306,9 @@ namespace pintrace { // We will use namespace to avoid collision
 
      FrameOption_t recvHelper(uint32_t fd, void *ptr, size_t len);
 
-     uint32_t getRegTaint(context &delta, uint32_t reg_int);
+     tag_t getRegTaint(context &delta, uint32_t reg_int);
 
-     uint32_t getMemTaint(uint32_t addr, RegMem_t type);
+     tag_t getMemTaint(uint32_t addr, RegMem_t type);
 
      void untaintMem(uint32_t addr);
        
@@ -216,7 +342,7 @@ namespace pintrace { // We will use namespace to avoid collision
      
      /********** Syscall-specific vars ***********/
      std::set<string> taint_files;
-     std::map<resource_t, uint32_t> taint_mappings;
+     std::map<resource_t, tag_t> taint_mappings;
      std::map<uint32_t, fdInfo_t> fds;
      std::map<uint32_t,uint32_t> sections;
      bool taint_net;
@@ -232,19 +358,19 @@ namespace pintrace { // We will use namespace to avoid collision
      std::map<unsigned int, unsigned int> syscall_map;
 #endif
 
-     void addTaintToWritten(context &delta, uint32_t tag);
+     void addTaintToWritten(context &delta, tag_t const & tag);
       
-     uint32_t combineTaint(uint32_t oldtag, uint32_t newtag);
+     tag_t combineTaint(tag_t const & oldtag, tag_t const & newtag);
 
      uint32_t exists(context &ctx, uint32_t elem);
 
-     uint32_t getTaint(context &ctx, uint32_t elem);
+     tag_t getTaint(context &ctx, uint32_t elem);
 
      FrameOption_t introMemTaint(uint32_t addr, uint32_t length, const char *source, int64_t offset);
 
      FrameOption_t introMemTaintFromFd(uint32_t fd, uint32_t addr, uint32_t length);
      
-     void setTaint(context &ctx, uint32_t key, uint32_t tag);
+     void setTaint(context &ctx, uint32_t key, tag_t const & tag);
 
    };
 

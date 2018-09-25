@@ -147,8 +147,8 @@ let trace_transform_stmt2 stmt evalf =
 let get_symbolic_seeds2 memv = function
   | Ast.Comment (s,atts) when is_seed_label s ->
       List.fold_left
-	(fun acc {index=index; taint=Taint taint} ->
-	   let newvarname = "symb_" ^ (string_of_int taint) in
+	(fun acc {index=index; taint=taint} ->
+	   let newvarname = "symb_" ^ (string_of_int (int_of_taint taint)) in
 	   let sym_var = Var (Var.newvar newvarname reg_8) in
 	     pdebug ("Introducing symbolic: " 
 		     ^(Printf.sprintf "%Lx" index)

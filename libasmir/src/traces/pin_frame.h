@@ -144,6 +144,7 @@ enum FrameType {
       FrameType type;
 
       Frame(FrameType ty) : type(ty) {}
+     virtual ~Frame() {}
 
       //
       // Serializes the frame and outputs to the ostream. 'sz' is the size
@@ -481,6 +482,7 @@ enum FrameType {
       // XXX: Additional registers?
 
       KeyFrame() : Frame(FRM_KEY) {}
+     virtual ~KeyFrame() {}
       virtual std::ostream &serialize(std::ostream &out, uint16_t sz = 0);
       virtual std::istream &unserializePart(std::istream &in);
 
